@@ -41,6 +41,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "StringHelper.h"
 
 /* Private define ------------------------------------------------------------*/
 
@@ -53,10 +54,12 @@ static uint16_t data_buff[2];
 
 void SystemClock_Config(void);
 
-/* Private user code ---------------------------------------------------------*/
+/* Function declerations -----------------------------------------------------*/
 
 int request_write(uint16_t slave_addr, uint16_t send, uint16_t buffer[]);
 int request_read(uint16_t slave_addr, uint16_t send);
+void transmit_str(char c[]);
+void transmit_char(char c);
 
 /**
   * @brief  The application entry point.
@@ -152,26 +155,6 @@ int main(void)
 	/* Set PE */
 	I2C2->CR1 |= (1 << 0);
 	
-	/* Set TXDR reg with WHO_AM_I */
-	data_buff[0] = 0x0F;
-	
-	request_write(L3GD, 0x1, data_buff);
-	
-	request_read(L3GD, 0x1);
-
-	uint32_t who_am_i = I2C2->RXDR & (0xFF);	
-	
-	I2C2->CR2 |= I2C_CR2_STOP;
-	
-	/* Pulse blue LED to ensure proper address was sent back */
-	if(who_am_i == 0xD4)
-	{
-		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
-		HAL_Delay(1000);
-		HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_7);
-	}
-	
-	
 	/*******************************************************************/
 
 	STARTOVER:
@@ -229,19 +212,7 @@ int main(void)
 			y_axis |= ((I2C2->RXDR & 0xFF) << 8);
 			I2C2->CR2 |= I2C_CR2_STOP;
 		}
-
-		/* Check for threshold values for y and x axis and toggle pins accordingly */
-		if(y_axis > 1000)
-		{
-			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_SET);
-			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_RESET);	
-		}
-		if(y_axis < -1000)
-		{
-			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
-			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_RESET);	
-		}
-		
+	
 	}
 
 }
@@ -358,6 +329,36 @@ int request_read(uint16_t slave_addr, uint16_t send)
 	}
 	
 	return 1;
+}
+
+void transmit_str(char c[])
+{
+	int i = 0;
+	while(c[i] != '\0')
+	{
+		HAL_Delay(1);
+		transmit_char(c[i]);
+		i++;
+	}
+	return;
+}
+
+/**
+	* @brief Transmits a single character via the USART TDR register
+	* @retval NONE
+  */
+void transmit_char(char c)
+{
+	/* Waits until transmission is ready */
+	while(!(USART1->ISR & 0x80))
+	{
+		/* Do Nothing */
+	}
+	
+	USART1->TDR &= ~(0xFF);
+	USART1->TDR |= c;
+	
+	return;
 }
 
 /**
