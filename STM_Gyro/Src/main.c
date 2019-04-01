@@ -184,7 +184,6 @@ int main(void)
 	
 	I2C2->CR2 |= I2C_CR2_STOP;
 	
-	int16_t x_axis;
 	int16_t y_axis;
 	
 	/* Infinite loop */	
@@ -212,30 +211,6 @@ int main(void)
 
 		HAL_Delay(100);
 
-		/* X-AXIS available */
-		if(result & 0x2)
-		{
-			data_buff[0] = 0x28;
-
-			request_write(L3GD, 0x1, data_buff);
-			
-			request_read(L3GD, 0x1);
-			
-			x_axis = I2C2->RXDR & (0xFF);
-			HAL_Delay(100);
-			
-			data_buff[0] = 0x29;
-			
-			request_write(L3GD, 0x1, data_buff);
-			request_read(L3GD, 0x1);
-			
-			x_axis |= ((I2C2->RXDR & 0xFF) << 8);
-
-			I2C2->CR2 |= I2C_CR2_STOP;
-			
-			HAL_Delay(90);
-		}
-  
 		/* Y-AXIS available */
 		if(result & 0x1)
 		{
@@ -265,17 +240,6 @@ int main(void)
 		{
 			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
 			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_RESET);	
-		}
-		if(x_axis > 1000)
-		{
-			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_9, GPIO_PIN_SET);
-			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_RESET);	
-		}
-		
-		if(x_axis < -1000)
-		{
-			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_SET);
-			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_9, GPIO_PIN_RESET);	
 		}
 		
 	}
