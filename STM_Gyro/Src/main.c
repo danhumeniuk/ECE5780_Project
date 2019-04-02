@@ -52,16 +52,12 @@
 /* Private variables ---------------------------------------------------------*/
 static uint16_t data_buff[2];
 
-/* Private function prototypes -----------------------------------------------*/
+/* Private functions -----------------------------------------------*/
+
+int request_write_I2C2(uint16_t slave_addr, uint16_t send, uint16_t buffer[], I2C_TypeDef * _I2C);
+int request_read_I2C2(uint16_t slave_addr, uint16_t send, I2C_TypeDef * _I2C);
 
 void SystemClock_Config(void);
-
-/* Function declerations -----------------------------------------------------*/
-
-int request_write(uint16_t slave_addr, uint16_t send, uint16_t buffer[]);
-int request_read(uint16_t slave_addr, uint16_t send);
-void transmit_str(char c[]);
-void transmit_char(char c);
 
 /**
   * @brief  The application entry point.
@@ -106,7 +102,7 @@ int main(void)
 	data_buff[0] = 0x20;
 	data_buff[1] = 0x0B;
 	
-	request_write(L3GD, 0x2, data_buff);
+	request_write(L3GD, 0x2, data_buff, I2C2);
 	
 	I2C2->CR2 |= I2C_CR2_STOP;
 	
@@ -121,12 +117,12 @@ int main(void)
 
 		data_buff[0] = 0x27;
 		/* Request data from status register */
-		if(!request_write(L3GD, 0x1, data_buff))
+		if(!request_write(L3GD, 0x1, data_buff, I2C2))
 		{
 			goto STARTOVER;
 		}
 
-		if(!request_read(L3GD, 0x1))
+		if(!request_read(L3GD, 0x1, I2C2))
 		{
 			goto STARTOVER;
 		}
@@ -141,17 +137,17 @@ int main(void)
 		if(result & 0x1)
 		{
 			data_buff[0] = 0x2A;
-			request_write(L3GD, 0x1, data_buff);
+			request_write(L3GD, 0x1, data_buff, I2C2);
 			
-			request_read(L3GD, 0x1);
+			request_read(L3GD, 0x1, I2C2);
 			y_axis = I2C2->RXDR & 0xFF;
 			
 			HAL_Delay(100);
 			
 			data_buff[0] = 0x2B;
-			request_write(L3GD, 0x1, data_buff);
+			request_write(L3GD, 0x1, data_buff, I2C2);
 			
-			request_read(L3GD, 0x1);
+			request_read(L3GD, 0x1, I2C2);
 			y_axis |= ((I2C2->RXDR & 0xFF) << 8);
 			I2C2->CR2 |= I2C_CR2_STOP;
 		}
@@ -167,150 +163,6 @@ int main(void)
 			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_RESET);
 		}
 	}
-}
-
-/*
- * Helper function to request a send. Returns a 0 if request failed
- * If it returns 1, the TX register will be available. This function
- * does not set the stop condition
- */
-int request_write(uint16_t slave_addr, uint16_t send, uint16_t buffer[])
-{
-	/* Clear the NBYTES and SADD */
-	I2C2->CR2 &= ~((0x7F << 16) | (0x3FF << 0));
-		
-	/* Slave address */
-	I2C2->CR2 |= ((slave_addr & 0x3FF) << 1);
-		
-	/* Set Bytes to Transmit */
-	I2C2->CR2 |= ((send & 0xFF) << 16);
-	
-	/* Request write operation */
-	I2C2->CR2 &= ~I2C_CR2_RD_WRN;
-		
-	/* Set the Start bit */
-	I2C2->CR2 |= I2C_CR2_START;
-	
-	while(1)
-	{
-		/* Condition for NACK */
-		if(I2C2->ISR & I2C_ISR_NACKF)
-		{
-			/* Glow Red DEBUGGING ONLY */
-			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_SET);
-			return 0;
-		}
-		/* Condition for TXIS */
-		else if(I2C2->ISR & I2C_ISR_TXIS)
-		{
-			break;
-		}
-	}
-	
-	/* Set TXDR reg with address */		
-	int i = 0;
-	while(i < send)
-	{
-		I2C2->TXDR = buffer[i];
-		i++;
-
-		if(i == send)
-		{
-			break;
-		}
-		while(1)
-		{
-			/* Condition for NACK */
-			if(I2C2->ISR & I2C_ISR_NACKF)
-			{
-				/* Glow Red DEBUGGING ONLY */
-				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_SET);
-				return 0;
-			}
-			/* Condition for TXIS */
-			else if(I2C2->ISR & I2C_ISR_TXIS)
-			{
-				break;
-			}
-		}
-	}
-	/* Wait for transfer to complete */
-	while(!(I2C2->ISR & I2C_ISR_TC))
-	{
-
-	}
-
-	return 1;
-}
-
-int request_read(uint16_t slave_addr, uint16_t send)
-{
-	/* Clear the NBYTES and SADD */
-	I2C2->CR2 &= ~((0x7F << 16) | (0x3FF << 0));
-	
-	/* Slave address */
-	I2C2->CR2 |= (slave_addr << 1);
-		
-	/* Set Bytes to Transmit to 1 */
-	I2C2->CR2 |= (send << 16);
-	
-	/* Request read operation */
-	I2C2->CR2 |= I2C_CR2_RD_WRN;
-
-	/* Set the Start bit */
-	I2C2->CR2 |= I2C_CR2_START;
-	
-	while(1)
-	{
-		/* Condition for NACK */
-		if(I2C2->ISR & I2C_ISR_NACKF)
-		{
-			/* Glow Red FOR DEBUGGING PUROPSES */
-			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_SET);
-		}
-		/* Condition for TXIS */
-		else if(I2C2->ISR & I2C_ISR_RXNE)
-		{
-			break;
-		}
-	}
-		
-	while(!(I2C2->ISR & I2C_ISR_TC))
-	{
-	
-	}
-	
-	return 1;
-}
-
-void transmit_str(char c[])
-{
-	int i = 0;
-	while(c[i] != '\0')
-	{
-		HAL_Delay(1);
-		transmit_char(c[i]);
-		i++;
-	}
-	return;
-}
-
-/**
-	* @brief Transmits a single character via the USART TDR register
-	* @retval NONE
-  */
-void transmit_char(char c)
-{
-	/* Waits until transmission is ready */
-	while(!(USART1->ISR & 0x80))
-	{
-		/* Do Nothing */
-	}
-	
-	USART1->TDR &= ~(0xFF);
-	USART1->TDR |= c;
-	
-	return;
 }
 
 /**
