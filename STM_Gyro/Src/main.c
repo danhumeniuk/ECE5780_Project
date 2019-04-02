@@ -42,6 +42,8 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "StringHelper.h"
+#include "GyroInit.h"
+#include "init_LED.h"
 
 /* Private define ------------------------------------------------------------*/
 
@@ -82,75 +84,16 @@ int main(void)
 	__HAL_RCC_GPIOC_CLK_ENABLE();
 	
 	/* INITIALIZE GPIO PINS */
+	init_LEDs();
 	
-	/* Initializes I2C pins */ 
-	GPIO_InitTypeDef I2C_SDA_SCL = 
-	{
-		GPIO_PIN_11 | GPIO_PIN_13,
-		GPIO_MODE_AF_OD,
-		GPIO_SPEED_FREQ_HIGH,
-		GPIO_NOPULL
-	};
+	uint16_t gyro_pins[4] = {GPIO_PIN_11, GPIO_PIN_13, GPIO_PIN_14, GPIO_PIN_0};
+	GPIO_TypeDef * gpios[4] = {GPIOB, GPIOB, GPIOB, GPIOC};
 	
-	GPIO_InitTypeDef Pin_PB14 = 
-	{
-		GPIO_PIN_14,
-		GPIO_MODE_OUTPUT_PP,
-		GPIO_SPEED_FREQ_HIGH,
-		GPIO_NOPULL
-	};
+	init_gyro(gyro_pins, gpios);
 	
-	GPIO_InitTypeDef Pin_PC0 = 
-	{
-		GPIO_PIN_0,
-		GPIO_MODE_OUTPUT_PP,
-		GPIO_SPEED_FREQ_HIGH,
-		GPIO_NOPULL
-	};
-	
-	GPIO_InitTypeDef initLED = 
-	{
-		GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_9,
-		GPIO_MODE_OUTPUT_PP,
-		GPIO_SPEED_FREQ_LOW,
-		GPIO_NOPULL
-	};
-	
-	HAL_GPIO_Init(GPIOB, &I2C_SDA_SCL);
-	HAL_GPIO_Init(GPIOB, &Pin_PB14);
-	HAL_GPIO_Init(GPIOC, &Pin_PC0);
-	HAL_GPIO_Init(GPIOC, &initLED);
-	
-	/* Set PB13 and PC0 to High */
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_0, GPIO_PIN_SET);
-	
-	/* SET ALTERNATE FUNCTIONS FOR PB11 AND PB13 */
-	/* PB11 AF1 - 0001 */
-	/* Set bits for PB11 xxx1*/ 
-	GPIOB->AFR[1] |= (1 << 12);
-	
-	/* Clear bits for PB11 000x */
-	GPIOB->AFR[1] &= ~((1 << 15) | (1 << 14) | (1 << 13));
-	
-	/* PB13 AF5 - 0101 */
-	/* Set bits for PB13 x1x1*/
-	GPIOB->AFR[1] |= (0x5 << 20);
-	
-	/* Clear bits for PB13 0x0x */
-	GPIOB->AFR[1] &= ~((1 << 23) | (1 << 21));
-	
-	/* SET TIMING REGISTER FOR I2C2 SET TO 100kHz */
-	/* PRESC */
-	I2C2->TIMINGR |= (0x1 << 28);
-	/* SCLDEL */
-	I2C2->TIMINGR |= (0X4 << 20);
-	/* SDADEL */
-  I2C2->TIMINGR |= (0x2 << 16);
-	/* SCLH */
-	I2C2->TIMINGR |= (0xF << 8);
-	/* SCLL */
-	I2C2->TIMINGR |= (0x13 << 0);
+	set_alternate_func_I2C2();
+
+	set_I2C2_100kHz();
 	
 	/* Set PE */
 	I2C2->CR1 |= (1 << 0);
@@ -213,8 +156,17 @@ int main(void)
 			I2C2->CR2 |= I2C_CR2_STOP;
 		}
 	
+		if(y_axis > 500)
+		{
+			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_RESET);
+		}
+		else if(y_axis < -500)
+		{
+			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_RESET);
+		}
 	}
-
 }
 
 /*
