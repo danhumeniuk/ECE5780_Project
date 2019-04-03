@@ -42,8 +42,9 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "StringHelper.h"
-#include "GyroInit.h"
-#include "init_LED.h"
+#include "Gyro.h"
+#include "LED.h"
+#include "USART.h"
 
 /* Private define ------------------------------------------------------------*/
 
@@ -53,9 +54,6 @@
 static uint16_t data_buff[2];
 
 /* Private functions -----------------------------------------------*/
-
-int request_write_I2C2(uint16_t slave_addr, uint16_t send, uint16_t buffer[], I2C_TypeDef * _I2C);
-int request_read_I2C2(uint16_t slave_addr, uint16_t send, I2C_TypeDef * _I2C);
 
 void SystemClock_Config(void);
 
@@ -76,13 +74,16 @@ int main(void)
   /* Initialize all configured peripherals */
 	
 	__HAL_RCC_I2C2_CLK_ENABLE();
+	__HAL_RCC_GPIOA_CLK_ENABLE();
 	__HAL_RCC_GPIOB_CLK_ENABLE();
 	__HAL_RCC_GPIOC_CLK_ENABLE();
+	__HAL_RCC_USART1_CLK_ENABLE();
 	
 	/* INITIALIZE GPIO PINS */
 	init_LEDs();
 	
 	uint16_t gyro_pins[4] = {GPIO_PIN_11, GPIO_PIN_13, GPIO_PIN_14, GPIO_PIN_0};
+	
 	GPIO_TypeDef * gpios[4] = {GPIOB, GPIOB, GPIOB, GPIOC};
 	
 	init_gyro(gyro_pins, gpios);
@@ -90,7 +91,14 @@ int main(void)
 	set_alternate_func_I2C2();
 
 	set_I2C2_100kHz();
+
+	/* ENABLE USART1 */
+	USART_INIT(GPIO_PIN_9, GPIO_PIN_10, GPIOA, GPIOA, 115200);
 	
+	SET_ALT_FUNC_USART1();
+	
+	USART1_Enable();
+
 	/* Set PE */
 	I2C2->CR1 |= (1 << 0);
 	
@@ -107,6 +115,7 @@ int main(void)
 	I2C2->CR2 |= I2C_CR2_STOP;
 	
 	int16_t y_axis;
+	char send[12];
 	
 	/* Infinite loop */	
   while (1)
@@ -132,7 +141,7 @@ int main(void)
 		uint16_t result = I2C2->RXDR & (0xFF);
 
 		HAL_Delay(100);
-
+		
 		/* Y-AXIS available */
 		if(result & 0x1)
 		{
@@ -162,6 +171,12 @@ int main(void)
 			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
 			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_RESET);
 		}
+		
+		IntegerToString(y_axis, send, BASE_10);
+		
+		TRANSMIT_STR(send);
+		TRANSMIT_STR("\t");
+		
 	}
 }
 
