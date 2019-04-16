@@ -26,12 +26,11 @@ void setup()
 {
   ESP.eraseConfig();
 
-  pinMode(LED_Pin, OUTPUT);
-
   boolean conn = WiFi.softAP(AP_NameChar, WiFiPassword, 6, 0);
 
   // Add handler function to server for home page
-  server.on("/", dataHandler);
+  server.on("/", indexHandler);
+  server.on("/data", dataHandler);
 
   server.begin();
 
@@ -44,11 +43,15 @@ void setup()
 
 }
 
-// Main handler, responds to the '/' index
+void indexHandler() {
+   server.send(200, "text/plain", "Connection Success :)");
+}
+
+// Main handler, responds to the '/data' index
 void dataHandler()
 {
   String gyroDataString = String(gyroData);
-  server.send(200, "text/html", gyroDataString);
+  server.send(200, "text/plain", gyroDataString);
 }
 
 void getGyroData() {
