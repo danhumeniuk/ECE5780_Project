@@ -48,7 +48,7 @@ void setup()
 void dataHandler()
 {
   String gyroDataString = String(gyroData);
-  server.send(200, "text/html", gyroDataString);
+  server.send(200, "text/plain", gyroDataString);
 }
 
 void getGyroData() {
