@@ -114,16 +114,15 @@ int main(void)
 	
 	I2C2->CR2 |= I2C_CR2_STOP;
 	
-	int16_t y_axis;
-	char send[12];
+	int16_t y_axis = 0;
+	int32_t rotation = 0;
+	int8_t to_send = 0;
 	
 	/* Infinite loop */	
   while (1)
   {
 		HAL_Delay(100);
 	
-		//HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_9);
-
 		data_buff[0] = 0x27;
 		/* Request data from status register */
 		if(!request_write(L3GD, 0x1, data_buff, I2C2))
@@ -143,6 +142,7 @@ int main(void)
 		HAL_Delay(100);
 		
 		/* Y-AXIS available */
+		
 		if(result & 0x1)
 		{
 			data_buff[0] = 0x2A;
@@ -160,23 +160,24 @@ int main(void)
 			y_axis |= ((I2C2->RXDR & 0xFF) << 8);
 			I2C2->CR2 |= I2C_CR2_STOP;
 		}
-	
-		if(y_axis > 500)
+		
+		rotation += y_axis;
+		
+		if(rotation > 500)
 		{
 			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_SET);
 			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_RESET);
 		}
-		else if(y_axis < -500)
+		else if(rotation < -500)
 		{
 			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
 			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_RESET);
 		}
 		
-		IntegerToString(y_axis, send, BASE_10);
-		
-		TRANSMIT_STR(send);
-		TRANSMIT_STR("\t");
-		
+		/*Convert rotation to a byte to send*/		
+		to_send = (rotation/16777216) * 0xFF;
+			
+		SEND_BYTE(to_send);
 	}
 }
 
