@@ -55,8 +55,7 @@ void TRANSMIT_CHAR(char c)
 		/* Do Nothing */
 	}
 	
-	USART1->TDR &= ~(0xFF);
-	USART1->TDR |= c;
+	USART1->TDR = c;
 	
 	return;
 }
@@ -70,5 +69,18 @@ void TRANSMIT_STR(char c[])
 		TRANSMIT_CHAR(c[i]);
 		i++;
 	}
+	return;
+}
+
+void SEND_BYTE(int8_t byte)
+{
+	/* Waits until transmission is ready */
+	while(!(USART1->ISR & 0x80))
+	{
+		/* Do Nothing */
+	}
+	
+	USART1->TDR = byte;
+	
 	return;
 }
