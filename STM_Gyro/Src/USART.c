@@ -69,6 +69,8 @@ void TRANSMIT_STR(char c[])
 		TRANSMIT_CHAR(c[i]);
 		i++;
 	}
+	TRANSMIT_CHAR('\0');
+	
 	return;
 }
 

@@ -115,7 +115,7 @@ int main(void)
 	I2C2->CR2 |= I2C_CR2_STOP;
 	
 	int16_t y_axis = 0;
-	int32_t rotation = 0;
+	int8_t rotation = 0;
 	float scaler = 8.75 *0.001;
 	char send[5];
 	/* Infinite loop */	
@@ -178,9 +178,10 @@ int main(void)
 		
 		/*Convert rotation to a byte to send*/		
 		
-		IntegerToString(rotation, send, BASE_10);	
-		//SEND_BYTE(to_send);
-		TRANSMIT_STR(send);
+	  //IntegerToString(rotation, send, BASE_10);	
+		//TRANSMIT_STR(send);
+		SEND_BYTE(rotation);
+		//TRANSMIT_CHAR(' ');
 	}
 }
 
