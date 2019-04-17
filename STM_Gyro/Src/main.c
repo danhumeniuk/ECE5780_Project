@@ -116,8 +116,8 @@ int main(void)
 	
 	int16_t y_axis = 0;
 	int32_t rotation = 0;
-	int8_t to_send = 0;
-	
+	float scaler = 8.75 *0.001;
+	char send[5];
 	/* Infinite loop */	
   while (1)
   {
@@ -161,23 +161,26 @@ int main(void)
 			I2C2->CR2 |= I2C_CR2_STOP;
 		}
 		
-		rotation += y_axis;
 		
-		if(rotation > 500)
+		rotation = (y_axis * scaler);
+		
+		
+		if(rotation > 1)
 		{
 			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_SET);
 			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_RESET);
 		}
-		else if(rotation < -500)
+		else if(rotation < 1)
 		{
 			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
 			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_RESET);
 		}
 		
 		/*Convert rotation to a byte to send*/		
-		to_send = (rotation/16777216) * 0xFF;
-			
-		SEND_BYTE(to_send);
+		
+		IntegerToString(rotation, send, BASE_10);	
+		//SEND_BYTE(to_send);
+		TRANSMIT_STR(send);
 	}
 }
 
