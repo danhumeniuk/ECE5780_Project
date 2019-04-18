@@ -88,7 +88,13 @@ void getGyroData() {
   Serial.println(line);
   Serial.println("==========");
   Serial.println("closing connection");
-  gyroData = line.toInt();
+  if (line.charAt(0) == '-') {
+    gyroData = line.substring(1).toInt();
+    gyroData = gyroData * -1;
+  } else {
+    gyroData = line.toInt();
+  }
+  Serial.println(gyroData);
 }
 
 void loop() {

@@ -51,12 +51,15 @@ void indexHandler() {
 void dataHandler()
 {
   String gyroDataString = String(gyroData);
+  Serial.println("String representation: " + gyroDataString);
   server.send(200, "text/plain", gyroDataString);
 }
 
 void getGyroData() {
   if (Serial.available() > 0) {
     gyroData = Serial.read();
+  } else {
+    //Serial.println("No data available.");
   }
 }
 
@@ -66,5 +69,5 @@ void loop()
   getGyroData();
   dnsServer.processNextRequest();
   server.handleClient();
-  delay(50);
+  delay(10);
 }
