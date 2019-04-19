@@ -81,7 +81,9 @@ int main(void)
 	init_i2c2_clk();	
 	
 	/* INITIALIZE GPIO PINS */
-	init_LEDs();
+	init_blue_LED();
+	
+	init_red_LED();
 	
 	uint16_t gyro_pins[4] = {GPIO_PIN_11, GPIO_PIN_13, GPIO_PIN_14, GPIO_PIN_0};
 	
@@ -94,7 +96,7 @@ int main(void)
 	set_I2C2_100kHz();
 
 	/* ENABLE USART1 */
-	USART_INIT(GPIO_PIN_9, GPIO_PIN_10, GPIOA, GPIOA, 115200);
+	USART1_INIT(115200);
 	
 	SET_ALT_FUNC_USART1();
 	

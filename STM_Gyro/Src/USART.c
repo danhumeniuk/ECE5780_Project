@@ -1,26 +1,10 @@
 #include "main.h"
 
-void USART_INIT(uint16_t RX, uint16_t TX, GPIO_TypeDef * RX_GPIO, GPIO_TypeDef * TX_GPIO, int baud)
+void USART1_INIT(int baud)
 {
-	/* Initializes USART pins */ 
-	GPIO_InitTypeDef USART_RX = 
-	{
-		RX,
-		GPIO_MODE_AF_PP,
-		GPIO_SPEED_FREQ_HIGH,
-		GPIO_NOPULL
-	};
+	/* Initializes USART1 pins */ 
+
 	
-	GPIO_InitTypeDef USART_TX = 
-	{
-		TX,
-		GPIO_MODE_AF_PP,
-		GPIO_SPEED_FREQ_HIGH,
-		GPIO_NOPULL
-	};
-	
-	HAL_GPIO_Init(RX_GPIO, &USART_RX);
-	HAL_GPIO_Init(TX_GPIO, &USART_TX);
 		
 	USART1->BRR = HAL_RCC_GetHCLKFreq()/baud;
 	

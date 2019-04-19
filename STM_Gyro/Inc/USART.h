@@ -1,6 +1,6 @@
 #include "main.h"
 
-void USART_INIT(uint16_t RX, uint16_t TX, GPIO_TypeDef * RX_GPIO, GPIO_TypeDef * TX_GPIO, int baud);
+void USART1_INIT(int baud);
 
 void TRANSMIT_STR(char c[]);
 

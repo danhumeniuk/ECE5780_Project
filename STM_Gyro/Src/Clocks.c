@@ -1,3 +1,10 @@
+/*
+ * These functions are to enable various clocks
+ * on the STM32
+ * Author: Dan Humeniuk
+ * Version: 18 Apr 19
+ */
+
 #include "Clocks.h"
 #include "main.h"
 
