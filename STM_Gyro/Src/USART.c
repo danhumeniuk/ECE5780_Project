@@ -1,16 +1,16 @@
+/*
+ * This library enables the USART1 peripheral on the STM32 Discovery
+ * Author: Dan Humeniuk
+ * Version: 18 Apr 19
+ */
+
 #include "main.h"
+#include "USART.h"
 
-void USART1_INIT(int baud)
-{
-	/* Initializes USART1 pins */ 
-
-	
-		
-	USART1->BRR = HAL_RCC_GetHCLKFreq()/baud;
-	
-}
-
-void SET_ALT_FUNC_USART1(void)
+/**
+	* Sets the alternate functions for GPIOA pins 9 and 10
+  */
+static void SET_ALT_FUNC_USART1(void)
 {
 	/* Set Alternate function for PA9 and PA 10 to USART1_TX and USART1_RX */
 	GPIOA->AFR[1] &= ~((1 << 11) | (1 << 10) | (1 << 9) | (1 << 7) | (1 << 6) | (1 << 5));
@@ -21,15 +21,28 @@ void SET_ALT_FUNC_USART1(void)
 	USART1->CR1 |= (1 << 2);
 }
 
-void USART1_Enable(void)
+/**
+	* Initializes the GPIO pins for USART1, sets the alternate functions, and
+  * enables the peripheral
+  */
+void USART1_INIT(int baud)
 {
+	/* Initializes GPIOA pins 9 and 10*/ 
+	GPIOA->MODER |= (1 << 18)	 | (1 << 19) | (1 << 20) | (1 << 21);	
+	GPIOA->OSPEEDR |= (1 << 18)	 | (1 << 19) | (1 << 20) | (1 << 21);
+	GPIOA->PUPDR &= !((1 << 18)	 | (1 << 19) | (1 << 20) | (1 << 21));
+	
+	SET_ALT_FUNC_USART1();
+	
+	/* Set BAUD rate */
+	USART1->BRR = SystemCoreClock/baud;
+	
 	/* Enable USART1 Peripheral */
 	USART1->CR1 |= USART_CR1_UE;
 }
 
 /**
-	* @brief Transmits a single character via the USART TDR register
-	* @retval NONE
+	* Transmits a single character via the USART TDR register
   */
 void TRANSMIT_CHAR(char c)
 {
@@ -44,6 +57,9 @@ void TRANSMIT_CHAR(char c)
 	return;
 }
 
+/**
+	* Transmits a string with the use of the TRANSMIT_CHAR function
+  */
 void TRANSMIT_STR(char c[])
 {
 	int i = 0;
@@ -58,6 +74,9 @@ void TRANSMIT_STR(char c[])
 	return;
 }
 
+/**
+	* Transmits a single byte via the USART TDR register
+  */
 void SEND_BYTE(int8_t byte)
 {
 	/* Waits until transmission is ready */

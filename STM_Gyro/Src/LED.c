@@ -6,6 +6,7 @@
  */
 
 #include "main.h"
+#include "LED.h"
 
 void init_blue_LED(void)
 {	

@@ -3,6 +3,7 @@
  * STM32 Discovery
  */
 #include "main.h"
+#include "Gyro.h"
 
 void init_gyro(uint16_t I2C_pins[4], GPIO_TypeDef * GPIOs[4])
 {

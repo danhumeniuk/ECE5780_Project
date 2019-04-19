@@ -97,11 +97,7 @@ int main(void)
 
 	/* ENABLE USART1 */
 	USART1_INIT(115200);
-	
-	SET_ALT_FUNC_USART1();
-	
-	USART1_Enable();
-
+		
 	/* Set PE */
 	I2C2->CR1 |= (1 << 0);
 	
