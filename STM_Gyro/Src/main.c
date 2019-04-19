@@ -45,6 +45,7 @@
 #include "Gyro.h"
 #include "LED.h"
 #include "USART.h"
+#include "Clocks.h"
 
 /* Private define ------------------------------------------------------------*/
 
@@ -73,11 +74,11 @@ int main(void)
 
   /* Initialize all configured peripherals */
 	
-	__HAL_RCC_I2C2_CLK_ENABLE();
-	__HAL_RCC_GPIOA_CLK_ENABLE();
-	__HAL_RCC_GPIOB_CLK_ENABLE();
-	__HAL_RCC_GPIOC_CLK_ENABLE();
-	__HAL_RCC_USART1_CLK_ENABLE();
+	init_gpioa_clk();
+	init_gpiob_clk();
+	init_gpioc_clk();
+	init_usart1_clk();
+	init_i2c2_clk();	
 	
 	/* INITIALIZE GPIO PINS */
 	init_LEDs();
