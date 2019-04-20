@@ -49,14 +49,20 @@
 
 /* Private define ------------------------------------------------------------*/
 
-#define L3GD 0x6B
+#define L3GD 0x6B					// Address of the gyroscope
+#define GYRO_ODR 95 			// How quickly the L3GD20 updates
+#define GYRO_SENS 8.75 		// The sensitivity in mdps/digit
 
-/* Private variables ---------------------------------------------------------*/
-static uint16_t data_buff[2];
+/* Global variables ---------------------------------------------------------*/
+uint16_t data_buff[2];		// Buffer for I2C communication
+int32_t rotation = 0; 		// Rotation of the gyroscope
+int16_t calibration = 0; 	// Calibration data computed at initialization
 
 /* Private functions -----------------------------------------------*/
 
 void SystemClock_Config(void);
+int16_t Read_YAxis(void);
+void Calibrate(void);
 
 /**
   * @brief  The application entry point.
@@ -79,6 +85,7 @@ int main(void)
 	init_gpioc_clk();
 	init_usart1_clk();
 	init_i2c2_clk();	
+	RCC->APB2ENR |= RCC_APB2ENR_SYSCFGEN;
 	
 	/* INITIALIZE GPIO PINS */
 	init_blue_LED();
@@ -102,85 +109,40 @@ int main(void)
 	I2C2->CR1 |= (1 << 0);
 	
 	/*******************************************************************/
-
-	STARTOVER:
 	
-	/* Write to CTRL Reg 1, set to normal or sleep mode */
+	/* Write to CTRL Reg 1, set to normal mode with Y-axis enabled (PD = 1, Yen = 1) */
+	/* Also set bandwidth to reduce noise */
 	data_buff[0] = 0x20;
-	data_buff[1] = 0x0B;
-	
+	data_buff[1] = 0x3F;		
 	request_write(L3GD, 0x2, data_buff, I2C2);
-	
 	I2C2->CR2 |= I2C_CR2_STOP;
 	
-	int16_t y_axis = 0;
-	int8_t rotation = 0;
-	float scaler = 8.75 *0.001;
-	char send[5];
-	/* Infinite loop */	
-  while (1)
-  {
-		HAL_Delay(100);
+	HAL_Delay(1); // Short pause to allow for lines to stabilize
+
+	/* Write to CTRL Reg 3, enable I2_DRDY */
+	data_buff[0] = 0x22;
+	data_buff[1] = 0x08;
+	request_write(L3GD, 0x2, data_buff, I2C2);
+	I2C2->CR2 |= I2C_CR2_STOP;
 	
-		data_buff[0] = 0x27;
-		/* Request data from status register */
-		if(!request_write(L3GD, 0x1, data_buff, I2C2))
-		{
-			goto STARTOVER;
-		}
-
-		if(!request_read(L3GD, 0x1, I2C2))
-		{
-			goto STARTOVER;
-		}
-
-		I2C2->CR2 |= I2C_CR2_STOP;
-  
-		uint16_t result = I2C2->RXDR & (0xFF);
-
-		HAL_Delay(100);
-		
-		/* Y-AXIS available */
-		
-		if(result & 0x1)
-		{
-			data_buff[0] = 0x2A;
-			request_write(L3GD, 0x1, data_buff, I2C2);
-			
-			request_read(L3GD, 0x1, I2C2);
-			y_axis = I2C2->RXDR & 0xFF;
-			
-			HAL_Delay(100);
-			
-			data_buff[0] = 0x2B;
-			request_write(L3GD, 0x1, data_buff, I2C2);
-			
-			request_read(L3GD, 0x1, I2C2);
-			y_axis |= ((I2C2->RXDR & 0xFF) << 8);
-			I2C2->CR2 |= I2C_CR2_STOP;
-		}
-		
-		
-		rotation = (y_axis * scaler);
-		
-		
-		if(rotation > 1)
-		{
-			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_SET);
-			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_RESET);
-		}
-		else if(rotation < 1)
-		{
-			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET);
-			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_RESET);
-		}
-		
-		/*Convert rotation to a byte to send*/		
-		
-	  //IntegerToString(rotation, send, BASE_10);	
-		//TRANSMIT_STR(send);
-		SEND_BYTE(rotation);
-		//TRANSMIT_CHAR(' ');
+	HAL_Delay(1);
+	
+	// Calibrate the gyroscope
+	Calibrate();
+	
+	/* Setup EXTI for PC2 (INT2 from gyroscope is mapped to PC2) */
+	SYSCFG->EXTICR[0] |= SYSCFG_EXTICR1_EXTI2_PC;
+	EXTI->IMR |= EXTI_IMR_IM2; // PC2 -> EXTI channel 2
+	EXTI->RTSR |= EXTI_RTSR_RT2; // Set rising trigger
+	
+	/* EXTI interrupt code */
+	HAL_NVIC_SetPriority(EXTI2_3_IRQn, 0, 0); // Give it the highest priority
+	HAL_NVIC_EnableIRQ(EXTI2_3_IRQn);	
+	
+	Read_YAxis(); // Flush the gyroscope
+	
+	while(1)
+	{
 	}
 }
 
@@ -215,6 +177,79 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+	* Takes 100 samples over 1 second from the gyroscope to get a drift value
+	*/
+void Calibrate(void)
+{
+	int32_t sum = 0;
+	
+	for (int i = 0; i < 100; i++)
+	{
+		sum += Read_YAxis();
+		HAL_Delay(10);
+	}
+	
+	calibration = sum / 100;
+
+	GPIOC->ODR |= GPIO_ODR_7; // Flashes the blue LED to show it is calibrated
+}
+
+/**
+	* Reads the two registers containing the y-axis angular velocity of the L3GD20
+	* Returns the resulting value.
+	*/
+int16_t Read_YAxis(void)
+{
+		int16_t y_axis = 0;	
+	
+		data_buff[0] = 0x2A;
+		request_write(L3GD, 0x1, data_buff, I2C2);
+		request_read(L3GD, 0x1, I2C2);
+		y_axis = I2C2->RXDR & 0xFF;
+		
+		data_buff[0] = 0x2B;
+		request_write(L3GD, 0x1, data_buff, I2C2);
+		request_read(L3GD, 0x1, I2C2);
+		y_axis |= ((I2C2->RXDR & 0xFF) << 8);
+	
+		I2C2->CR2 |= I2C_CR2_STOP;
+	
+		return y_axis;
+}
+/**
+	* Handles interrupts from EXTI channel 2 and 3.
+	* Since we only have channel 2 enabled, we will forgo checking if the interrupt
+	* was caused by the third channel. Channel 2 is connected to INT2_DRDY of the 
+	* L3GD20, meaning new data is ready to be read.
+	*/
+void EXTI2_3_IRQHandler(void)
+{	 		
+		int16_t y_speed = Read_YAxis(); // Get the new y-axis data
+		y_speed -= calibration; // Offset it by the calibration data
+		rotation += ((int32_t)y_speed << 16) * (GYRO_SENS / 1000 / GYRO_ODR); // Update the rotation
+	
+		// Read the upper 16 bits for the current rotation
+		if((rotation >> 16) > 15)
+		{
+			GPIOC->ODR |= GPIO_ODR_6; // Turn on the red LED
+			GPIOC->ODR &= ~GPIO_ODR_7; // Turn off the blue LED
+		}
+		else if((rotation >> 16) < -15)
+		{
+			GPIOC->ODR |= GPIO_ODR_7; // Turn on the blue LED
+			GPIOC->ODR &= ~GPIO_ODR_6; // Turn off the red LED
+		}
+		else
+		{
+			GPIOC->ODR &= ~(GPIO_ODR_6 | GPIO_ODR_7); // Turn off both LEDs
+		}
+				
+		// Send the current rotation over UART to the ESP8266
+		SEND_BYTE((int8_t)(rotation >> 16));		
+		EXTI->PR |= EXTI_PR_PR2; // Clear the pending interrupt flag		
 }
 
 
