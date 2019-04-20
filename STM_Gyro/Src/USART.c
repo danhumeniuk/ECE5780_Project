@@ -28,9 +28,9 @@ static void SET_ALT_FUNC_USART1(void)
 void USART1_INIT(int baud)
 {
 	/* Initializes GPIOA pins 9 and 10*/ 
-	GPIOA->MODER |= (1 << 18)	 | (1 << 19) | (1 << 20) | (1 << 21);	
-	GPIOA->OSPEEDR |= (1 << 18)	 | (1 << 19) | (1 << 20) | (1 << 21);
-	GPIOA->PUPDR &= !((1 << 18)	 | (1 << 19) | (1 << 20) | (1 << 21));
+	GPIOA->MODER |= GPIO_MODER_MODER9_1 | GPIO_MODER_MODER10_1; 				// Set both to AF
+	GPIOA->OSPEEDR |= GPIO_OSPEEDER_OSPEEDR9 | GPIO_OSPEEDER_OSPEEDR10; // High speed
+	GPIOA->PUPDR &= ~(GPIO_PUPDR_PUPDR9 | GPIO_PUPDR_PUPDR10); 					// No pullup/pulldown
 	
 	SET_ALT_FUNC_USART1();
 	
